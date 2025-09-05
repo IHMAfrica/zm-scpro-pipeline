@@ -1,0 +1,44 @@
+# ---------- Stage 1: build Python deps (no apt) ----------
+FROM python:3.10-slim AS pydeps
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+WORKDIR /tmp
+
+# Change this if your file is at repo root:
+# COPY requirements.txt /tmp/requirements.txt
+COPY flink/requirements.txt /tmp/requirements.txt
+
+# Install to a relocatable prefix so we can copy it into Flink later
+RUN python -m pip install --upgrade pip \
+ && python -m pip install --no-cache-dir --prefix=/opt/pydeps -r /tmp/requirements.txt
+
+# ---------- Stage 2: fetch Flink connector JARs (no apt) ----------
+FROM curlimages/curl:8.8.0 AS jars
+WORKDIR /jars
+# Helper to download robustly
+SHELL ["/bin/sh", "-c"]
+RUN set -e; \
+  fetch() { echo ">> $1"; curl -fsSL --retry 5 --retry-connrefused -o "$(basename "$1")" "$1"; }; \
+  fetch "https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/1.17.1/flink-sql-connector-kafka-1.17.1.jar"; \
+  fetch "https://repo1.maven.org/maven2/org/apache/flink/flink-connector-jdbc/3.1.1-1.17/flink-connector-jdbc-3.1.1-1.17.jar"; \
+  fetch "https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.3/postgresql-42.7.3.jar"; \
+  fetch "https://repo1.maven.org/maven2/org/apache/flink/flink-avro-confluent-registry/1.17.1/flink-avro-confluent-registry-1.17.1.jar"
+
+# ---------- Stage 3: final Flink runtime ----------
+FROM flink:1.17.1-scala_2.12-java11
+
+USER root
+WORKDIR /opt/flink/usrlib
+
+# Bring in Python runtime installed in Stage 1
+COPY --from=pydeps /opt/pydeps /usr/local
+ENV PATH=/usr/local/bin:$PATH
+# Make sure PyFlink can see your job folder AND site-packages
+ENV PYTHONPATH=/opt/flink/usrlib/job:/usr/local/lib/python3.10/site-packages
+
+# Bring in connector jars
+COPY --from=jars /jars/*.jar /opt/flink/lib/
+
+# Keep the stock entrypoint; compose uses:
+#   /docker-entrypoint.sh jobmanager | taskmanager

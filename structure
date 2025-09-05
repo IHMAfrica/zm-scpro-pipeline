@@ -1,0 +1,31 @@
+carepro-pipeline/
+├─ docker-compose.yml
+├─ .env
+├─ README.md
+├─ docker/
+│  ├─ flink/Dockerfile
+│  └─ flink/download-connectors.sh
+├─ connectors/
+│  ├─ debezium-sqlserver-carepro.json
+│  ├─ topics.sh
+│  └─ register.sh
+├─ flink/
+│  ├─ job/
+│  │  ├─ main.py
+│  │  ├─ transforms_art_cohort.py
+│  │  ├─ transforms_interactions.py
+│  │  ├─ sinks/
+│  │  │  └─ postgres_sink.py
+│  │  └─ utils/
+│  │     ├─ schema_utils.py
+│  │     └─ security.py
+│  └─ requirements.txt
+├─ postgres/
+│  ├─ init/01_schema.sql
+│  └─ init/02_indexes.sql
+└─ scripts/
+|   ├─ bootstrap.sh
+|   └─ wait-for.sh
+├─ sql
+   ├─ art_cohort.sql
+   └─ carepro_all_interactions.sql
