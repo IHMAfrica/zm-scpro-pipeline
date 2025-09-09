@@ -10,7 +10,7 @@ Transform one art_cohort row (JSON) to the cleaned + enriched record:
 
 from datetime import date
 from typing import Dict, Any, Optional
-from .utils.schema_utils import (
+from utils.schema_utils import (
     to_date, to_int, to_decimal, bmi, months_between, days_between,
     normalize_regimen, regimen_family, linkage_bucket, cohort_bucket,
     mmd_type_from_duration, dsd_model_f as dsd_model_calc, vl_baseline_category,
@@ -30,7 +30,7 @@ BASE_COLS = [
     "currentcd4percdate","baseline_vl_copies","baselinevldate","current_vl_copies","currentvldate",
     "patientstatus","patientstatusdate","ancvisitdate","estimateddateofdelivery","lastinteractionservice",
     "firstinteractionservice","firstinteraction_date","lastinteraction_date","nextappointmentdate","prescription",
-    "Prescription Date","dsd","entrypoint","discordantcouple","multipleconcurrentpartners","previousfacilityname",
+    "prescription_date","dsd","entrypoint","discordantcouple","multipleconcurrentpartners","previousfacilityname",
     "transferindate","codeofpreviousfacility","facilitynametransferredto","codeoffacilitytransferredto",
     "proteinuria","proteinuriadate","rprrst","rprrsdate","hb","hbdate","alt","altdate","rbs","rbsdate",
     "creatinine","creatininedate","hepatitisb","hepatitisbdate","meningitis","meningitisdate","csf","csfdate",
@@ -61,7 +61,7 @@ DATE_FIELDS = {
     "currentartregimendispensationdate","baselinecd4countdate","currentcd4countdate","baselinecd4percdate",
     "currentcd4percdate","baselinevldate","currentvldate","patientstatusdate","ancvisitdate",
     "estimateddateofdelivery","firstinteraction_date","lastinteraction_date","nextappointmentdate",
-    "Prescription Date","proteinuriadate","rprrsdate","hbdate","altdate","rbsdate","creatininedate",
+    "prescription_date","proteinuriadate","rprrsdate","hbdate","altdate","rbsdate","creatininedate",
     "hepatitisbdate","meningitisdate","csfdate","malariadate","geneexpertmtbdate","syphilisrdtdate",
     "tphardtdate","hpvdate","tptstartdate","tptenddate","dateeligiblefortpt","current_vitalsdate","baseline_vitalsdate",
     "dateofdeath","transferindate"

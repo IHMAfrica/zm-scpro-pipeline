@@ -1,6 +1,6 @@
 from pyflink.table import Table
 from pyflink.table.expressions import col, year, month, lit, call
-from .utils.schema_utils import std_regimen
+from utils.schema_utils import std_regimen
 
 # Maps raw CarePro service names to modules
 SERVICE_MAP = {

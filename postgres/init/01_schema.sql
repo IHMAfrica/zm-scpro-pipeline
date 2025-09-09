@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS carepro.art_cohort (
   lastinteraction_date     DATE,
   nextappointmentdate      DATE,
   prescription             TEXT,
-  "Prescription Date"      DATE,
+  prescription_date        DATE,
   dsd                      TEXT,
   entrypoint               TEXT,
   discordantcouple         TEXT,
