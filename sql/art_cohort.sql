@@ -55,7 +55,7 @@ SELECT
   [lastinteraction_date],
   [nextappointmentdate],
   [prescription],
-  [Prescription Date],
+  [prescription_date],
   [dsd],
   [entrypoint],
   [discordantcouple],

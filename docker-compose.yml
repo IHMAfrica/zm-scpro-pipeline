@@ -125,6 +125,8 @@ services:
       # Flink tuning
       FLINK_PARALLELISM: ${FLINK_PARALLELISM}
       FLINK_CHECKPOINT_INTERVAL_MS: ${FLINK_CHECKPOINT_INTERVAL_MS}
+      # <<< ADDED: makes PyFlink harness see your libs (incl. Avro) >>>
+      PYTHONPATH: "/opt/flink/usrlib/job:/opt/flink/opt/python/pyflink/thirdparty:/opt/flink/opt/python"
     command: ["/bin/bash","-lc","/docker-entrypoint.sh jobmanager"]
     volumes:
       - ./flink/job:/opt/flink/usrlib/job:ro
@@ -138,7 +140,7 @@ services:
       flink-jobmanager:
         condition: service_started
     environment:
-        # Postgres sink
+      # Postgres sink
       PG_HOST: host.docker.internal
       PG_PORT: "5432"
       PG_DB: carepro_messages
@@ -147,6 +149,8 @@ services:
       PG_SSLMODE: disabled
       JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
       FLINK_PARALLELISM: ${FLINK_PARALLELISM}
+      # <<< ADDED: same PYTHONPATH for TM >>>
+      PYTHONPATH: "/opt/flink/usrlib/job:/opt/flink/opt/python/pyflink/thirdparty:/opt/flink/opt/python"
     command: ["/bin/bash","-lc","/docker-entrypoint.sh taskmanager"]
     volumes:
       - ./flink/job:/opt/flink/usrlib/job:ro

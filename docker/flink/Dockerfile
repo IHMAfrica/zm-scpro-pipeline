@@ -42,10 +42,20 @@ RUN set -eux; \
 COPY flink/requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
 
-# Make sure your job folder is on PYTHONPATH
-ENV PYTHONPATH=/opt/flink/usrlib/job
+# ------------------------- ADDED: Avro for PyFlink -------------------------
+# PyFlink 1.17 expects the "avro" module to be available and is compatible with
+# avro-python3 >=1.8.1,<1.10.0 but not 1.9.2 exactly. 1.9.2.1 is safe.
+# 1) Ensure a compatible avro is installed system-wide (for your own code)
+# 2) Vendor the same package into Flink's thirdparty dir for the Beam harness
+RUN set -eux; \
+    pip3 uninstall -y avro || true; \
+    pip3 install --no-cache-dir "avro-python3==1.9.2.1"; \
+    mkdir -p /opt/flink/opt/python/pyflink/thirdparty; \
+    pip3 install --no-cache-dir --target /opt/flink/opt/python/pyflink/thirdparty "avro-python3==1.9.2.1"
+# --------------------------------------------------------------------------
+
+# Make sure your job folder AND vendored libs are on PYTHONPATH
+ENV PYTHONPATH=/opt/flink/usrlib/job:/opt/flink/opt/python/pyflink/thirdparty:/opt/flink/opt/python
 
 # Add connector jars to Flink
 COPY --from=jars /jars/*.jar /opt/flink/lib/
-
-

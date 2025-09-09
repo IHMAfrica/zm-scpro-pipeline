@@ -14,9 +14,9 @@ RUN python -m pip install --upgrade pip \
  && python -m pip install --no-cache-dir --prefix=/opt/pydeps -r /tmp/requirements.txt
 
 # ---------- Stage 2: fetch Flink connector JARs (no apt) ----------
+# ---------- Stage: fetch connector JARs ----------
 FROM curlimages/curl:8.8.0 AS jars
 WORKDIR /jars
-# Helper to download robustly
 SHELL ["/bin/sh", "-c"]
 RUN set -e; \
   fetch() { echo ">> $1"; curl -fsSL --retry 5 --retry-connrefused -o "$(basename "$1")" "$1"; }; \
@@ -25,24 +25,27 @@ RUN set -e; \
   fetch "https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.3/postgresql-42.7.3.jar"; \
   fetch "https://repo1.maven.org/maven2/org/apache/flink/flink-avro-confluent-registry/1.17.1/flink-avro-confluent-registry-1.17.1.jar"
 
-# ---------- Stage 3: final Flink runtime ----------
+# ---------- Stage: final Flink runtime ----------
 FROM flink:1.17.1-scala_2.12-java11
 
 USER root
 WORKDIR /opt/flink/usrlib
 
-# NEW: bring the Python interpreter + stdlib from the builder stage
-COPY --from=pydeps /usr/local /usr/local
+# Install OS-native Python that matches the image's glibc, plus jq/curl for quick checks
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      python3 python3-pip python-is-python3 jq curl; \
+    rm -rf /var/lib/apt/lists/*
 
-# Bring in Python deps you installed with --prefix=/opt/pydeps
-COPY --from=pydeps /opt/pydeps /usr/local
+# Install your PyFlink deps inside this image
+COPY flink/requirements.txt /tmp/requirements.txt
+RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
 
-ENV PATH=/usr/local/bin:$PATH
-ENV PYTHONPATH=/opt/flink/usrlib/job:/usr/local/lib/python3.10/site-packages
+# Make sure your job folder is on PYTHONPATH
+ENV PYTHONPATH=/opt/flink/usrlib/job
 
-# Bring in connector jars
+# Add connector jars to Flink
 COPY --from=jars /jars/*.jar /opt/flink/lib/
 
-# Keep the stock entrypoint; compose uses:
-#   /docker-entrypoint.sh jobmanager | taskmanager
 
