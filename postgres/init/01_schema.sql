@@ -11,8 +11,10 @@ CREATE TABLE IF NOT EXISTS carepro.raw_events (
 -- Curated tables for Superset
 -- Base columns (exactly your source list)
 CREATE TABLE IF NOT EXISTS carepro.art_cohort (
+  id                       SERIAL NOT NULL,
   patientid                TEXT NOT NULL,
-  artnumber                TEXT NOT NULL,
+  art_number               TEXT,
+  artnumber                TEXT,
   nupn                     TEXT,
   nrc                      TEXT,
   owningguid               TEXT,
@@ -161,7 +163,7 @@ CREATE TABLE IF NOT EXISTS carepro.art_cohort (
   silent_transfer          BOOLEAN,
   re_initiated             BOOLEAN,
 
-  PRIMARY KEY (patientid, artnumber)
+  PRIMARY KEY (patientid)
 );
 
 CREATE TABLE IF NOT EXISTS carepro.carepro_all_interactions (

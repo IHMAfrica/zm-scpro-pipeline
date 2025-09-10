@@ -9,15 +9,13 @@ Transform one art_cohort row (JSON) to the cleaned + enriched record:
 """
 
 from datetime import date
-from typing import Dict, Any
-
+from typing import Dict, Any, Optional
 from utils.schema_utils import (
     to_date, to_int, to_decimal, bmi, months_between, days_between,
     normalize_regimen, regimen_family, linkage_bucket, cohort_bucket,
     mmd_type_from_duration, dsd_model_f as dsd_model_calc, vl_baseline_category,
     ahd_flag, vl_eligibility as vl_elig_calc, vl_coverage as vl_cov_calc,
-    norm_text, upper_strip, lower_strip,
-    outcome_1 as outcome_1_calc, 
+    norm_text, upper_strip, lower_strip
 )
 
 # --- Base columns (your source list; DO NOT change) ---
@@ -172,8 +170,13 @@ def transform(row: Dict[str, Any]) -> Dict[str, Any]:
         days_missed = days_between(report_ref, out["nextappointmentdate"])
     elif out.get("lastinteraction_date"):
         days_missed = days_between(report_ref, out["lastinteraction_date"])
-    out["outcome_1"] = outcome_1_calc(out.get("patientstatus"), out["re_initiated"], days_missed)
+    out["outcome_1"] = __outcome_bucket(out.get("patientstatus"), out["re_initiated"], days_missed)
 
     # Ensure ALL columns exist
     _ensure_all(out)
     return out
+
+
+def __outcome_bucket(patientstatus, re_initiated, days_missed) -> str:
+    from .utils.schema_utils import outcome_1 as _o1
+    return _o1(patientstatus, re_initiated, days_missed)

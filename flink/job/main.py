@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Kafka -> Clean -> Dedup -> Postgres (art_cohort only)
+- Keeps NULL artnumber rows and persists them
+- Adds derived art_number = COALESCE(artnumber, '__NULL__') for analytics (not used in PK)
+- Upserts are keyed ONLY by patientid (PRIMARY KEY patientid NOT ENFORCED in Flink)
 """
 
 import json
@@ -15,8 +18,8 @@ from pyflink.common.typeinfo import Types
 from pyflink.datastream.state import ValueStateDescriptor
 from pyflink.datastream.functions import KeyedProcessFunction, RuntimeContext
 
-# Table API for JDBC sink
 from pyflink.table import StreamTableEnvironment, Schema, DataTypes
+from pyflink.table.expressions import col, lit, coalesce
 from pyflink.common import Row
 
 from transforms_art_cohort import transform, REQUIRED_COLS
@@ -31,19 +34,16 @@ CP_MS = int(os.getenv("FLINK_CHECKPOINT_INTERVAL_MS", "60000"))
 
 PG_HOST = os.getenv("PG_HOST", "localhost")
 PG_PORT = os.getenv("PG_PORT", "5432")
-PG_DB = os.getenv("PG_DB", "postgres")
+PG_DB = os.getenv("PG_DB", "postgres")  
 PG_USER = os.getenv("PG_USER", "postgres")
 PG_PASSWORD = os.getenv("PG_PASSWORD", "postgres")
-PG_SSLMODE = os.getenv("PG_SSLMODE", "disable")  # "disable" for local
 
-# -----------------------------------------------------------------------------
-# Helpers
 # -----------------------------------------------------------------------------
 def md5(s: str) -> str:
     return hashlib.md5(s.encode("utf-8")).hexdigest()
 
 def bt(name: str) -> str:
-    """Backtick-quote a Flink identifier (for spaces, mixed case, etc.)."""
+    # Quote identifiers for Flink SQL dialect using backticks
     return f"`{name.replace('`', '``')}`"
 
 class DedupByKeyHash(KeyedProcessFunction):
@@ -51,7 +51,6 @@ class DedupByKeyHash(KeyedProcessFunction):
         self.seen = runtime_context.get_state(
             ValueStateDescriptor("last_hash", Types.STRING())
         )
-
     def process_element(self, value: Tuple[str, str], ctx):
         key, payload = value
         h = md5(payload)
@@ -60,8 +59,6 @@ class DedupByKeyHash(KeyedProcessFunction):
             self.seen.update(h)
             yield value
 
-# -----------------------------------------------------------------------------
-# Job
 # -----------------------------------------------------------------------------
 def main():
     # 1) DataStream env + Kafka source
@@ -79,7 +76,7 @@ def main():
     consumer = FlinkKafkaConsumer([KAFKA_TOPIC], SimpleStringSchema(), props)
     src = env.add_source(consumer).name("kafka-art-cohort")
 
-    # Map JSON -> cleaned dict -> project REQUIRED_COLS, build composite key
+    # Map JSON -> cleaned -> project REQUIRED_COLS, build composite key (pid|artn)
     def clean_map(s: str) -> Tuple[str, str]:
         try:
             raw: Dict[str, Any] = json.loads(s)
@@ -89,7 +86,7 @@ def main():
         projected = {c: cleaned.get(c) for c in REQUIRED_COLS}
         pid = str(projected.get("patientid") or "").strip()
         artn = str(projected.get("artnumber") or "").strip()
-        key = f"{pid}|{artn}"
+        key = f"{pid}|{artn}"  # may be "pid|" when artnumber is NULL/blank
         return (key, json.dumps(projected, default=str))
 
     cleaned = src.map(
@@ -105,9 +102,8 @@ def main():
         output_type=Types.TUPLE([Types.STRING(), Types.STRING()])
     ).name("dedup-stateful")
 
-    # Convert (key, json) -> Row with columns in REQUIRED_COLS order
+    # Convert (key, json) -> Row with columns in REQUIRED_COLS order (TEXT-ish)
     row_type = Types.ROW_NAMED(REQUIRED_COLS, [Types.STRING()] * len(REQUIRED_COLS))
-
     def to_row(kv: Tuple[str, str]) -> Row:
         _, js = kv
         if isinstance(js, (bytes, bytearray)):
@@ -117,27 +113,34 @@ def main():
 
     rows_stream = deduped.map(to_row, output_type=row_type).name("json->row")
 
-    # 2) Table API: JDBC sink to Postgres
+    # 2) Table API: JDBC sink to Postgres (public.art_cohort) with PK on patientid only
     t_env = StreamTableEnvironment.create(env)
 
-    # Build explicit schema to avoid alias() issues with odd field names
+    # Build schema & table from stream
     sb = Schema.new_builder()
     for c in REQUIRED_COLS:
         sb.column(c, DataTypes.STRING())
     tbl_schema = sb.build()
     events_tbl = t_env.from_data_stream(rows_stream, tbl_schema)
 
-    # Flink sink DDL with backticked identifiers
+    # Derived normalized key column for analytics only (not used in PK)
+    events_tbl2 = events_tbl.add_columns(
+        coalesce(col("artnumber"), lit("__NULL__")).alias("art_number")
+    )
+
+    # Flink sink DDL: target public.art_cohort; PK on patientid only (NOT ENFORCED)
     pg_url = f"jdbc:postgresql://{PG_HOST}:{PG_PORT}/{PG_DB}"
-    cols_ddl = ", ".join([f"{bt(c)} STRING" for c in REQUIRED_COLS])
+    all_cols = REQUIRED_COLS + ["art_number"]
+    cols_ddl = ", ".join([f"{bt(c)} STRING" for c in all_cols])
+
     ddl = f"""
     CREATE TABLE IF NOT EXISTS art_sink (
       {cols_ddl},
-      PRIMARY KEY ({bt("patientid")}, {bt("artnumber")}) NOT ENFORCED
+      PRIMARY KEY ({bt("patientid")}) NOT ENFORCED
     ) WITH (
       'connector' = 'jdbc',
       'url' = '{pg_url}',
-      'table-name' = 'carepro.art_cohort',
+      'table-name' = 'public.art_cohort',
       'driver' = 'org.postgresql.Driver',
       'username' = '{PG_USER}',
       'password' = '{PG_PASSWORD}',
@@ -148,32 +151,10 @@ def main():
     """
     t_env.execute_sql(ddl)
 
-    # Optionally ensure physical PG table exists (requires psycopg2-binary in image)
-    try:
-        import psycopg2
-        def _qident(n: str) -> str:
-            return '"' + n.replace('"', '""') + '"'
-        cols_sql = ", ".join(f'{_qident(c)} TEXT' for c in REQUIRED_COLS)
-        pk_sql = f'PRIMARY KEY ({_qident("patientid")}, {_qident("artnumber")})'
-        conn = psycopg2.connect(
-            host=PG_HOST, port=PG_PORT, dbname=PG_DB,
-            user=PG_USER, password=PG_PASSWORD, sslmode=PG_SSLMODE
-        )
-        try:
-            conn.autocommit = True
-            cur = conn.cursor()
-            cur.execute('CREATE SCHEMA IF NOT EXISTS "carepro"')
-            cur.execute(f'CREATE TABLE IF NOT EXISTS "carepro"."art_cohort" ({cols_sql}, {pk_sql})')
-            cur.close()
-        finally:
-            conn.close()
-    except Exception as e:
-        print(f"[WARN] Could not ensure PG table automatically: {e}")
-
     # Start the sink
     stmt = t_env.create_statement_set()
-    stmt.add_insert("art_sink", events_tbl)
-    stmt.execute()  # detached when you run `flink run -d`
+    stmt.add_insert("art_sink", events_tbl2)
+    stmt.execute()  # detached when run with `flink run -d`
 
 if __name__ == "__main__":
     main()

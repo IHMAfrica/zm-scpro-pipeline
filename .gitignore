@@ -1,0 +1,51 @@
+# ===============================
+# Environment & secrets (critical)
+# ===============================
+# Ignore ALL .env-style files …
+.env
+.env.*
+# …but allow safe templates for documentation/onboarding
+!.env.example
+!.env.template
+!.env.sample
+
+# ===============================
+# Python (your Flink/Py jobs)
+# ===============================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+dist/
+build/
+.cache/
+.pytest_cache/
+.mypy_cache/
+.coverage*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# ===============================
+# Editors/OS noise
+# ===============================
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# ===============================
+# Logs & scratch
+# ===============================
+*.log
+logs/
+*.out
+*.err

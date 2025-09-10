@@ -25,7 +25,7 @@ services:
       zookeeper:
         condition: service_healthy
     ports:
-      - "9092:9092"          # Local dev: PLAINTEXT only
+      - "9092:9092"          # Local dev: PLAINTEXT
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -56,7 +56,7 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
     ports:
-      - "8082:8081"          # avoid conflict with Flink 8081
+      - "8082:8081"         
 
   connect:
     image: debezium/connect:2.4
@@ -125,7 +125,6 @@ services:
       # Flink tuning
       FLINK_PARALLELISM: ${FLINK_PARALLELISM}
       FLINK_CHECKPOINT_INTERVAL_MS: ${FLINK_CHECKPOINT_INTERVAL_MS}
-      # <<< ADDED: makes PyFlink harness see your libs (incl. Avro) >>>
       PYTHONPATH: "/opt/flink/usrlib/job:/opt/flink/opt/python/pyflink/thirdparty:/opt/flink/opt/python"
     command: ["/bin/bash","-lc","/docker-entrypoint.sh jobmanager"]
     volumes:
@@ -149,7 +148,6 @@ services:
       PG_SSLMODE: disabled
       JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
       FLINK_PARALLELISM: ${FLINK_PARALLELISM}
-      # <<< ADDED: same PYTHONPATH for TM >>>
       PYTHONPATH: "/opt/flink/usrlib/job:/opt/flink/opt/python/pyflink/thirdparty:/opt/flink/opt/python"
     command: ["/bin/bash","-lc","/docker-entrypoint.sh taskmanager"]
     volumes:
