@@ -42,10 +42,10 @@ RUN set -eux; \
 COPY flink/requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
 
-# ------------------------- ADDED: Avro for PyFlink -------------------------
+# ------------------------- Avro for PyFlink -------------------------
 # PyFlink 1.17 expects the "avro" module to be available and is compatible with
 # avro-python3 >=1.8.1,<1.10.0 but not 1.9.2 exactly. 1.9.2.1 is safe.
-# 1) Ensure a compatible avro is installed system-wide (for your own code)
+# 1) Ensure a compatible avro is installed system-wide 
 # 2) Vendor the same package into Flink's thirdparty dir for the Beam harness
 RUN set -eux; \
     pip3 uninstall -y avro || true; \
