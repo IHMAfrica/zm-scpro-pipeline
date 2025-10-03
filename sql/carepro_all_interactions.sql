@@ -1,2 +1,2 @@
 SELECT *
-FROM [dbo].[carepro_all_interactions];
+FROM [dbo].[CareProAllInteractions];

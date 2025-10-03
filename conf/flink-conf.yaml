@@ -1,0 +1,25 @@
+# ==== Core sizing (adjust upward if you have more RAM) ====
+jobmanager.memory.process.size: 4096m
+
+# Give the TaskManager more total memory and direct/off-heap headroom
+taskmanager.memory.process.size: 3072m
+taskmanager.memory.task.off-heap.size: 768m
+taskmanager.memory.framework.off-heap.size: 256m
+
+# Network memory for shuffles (moderate but safe)
+taskmanager.memory.network.min: 128m
+taskmanager.memory.network.max: 256m
+
+# For two concurrently jobs. Provide >= total needed slots.
+# If each job uses parallelism=2, set at least 4 slots.
+taskmanager.numberOfTaskSlots: 4
+
+# Quiet the JVM reflective-access warning 
+env.java.opts.taskmanager: "-XX:+UnlockExperimentalVMOptions --add-opens=java.base/java.util=ALL-UNNAMED"
+env.java.opts.jobmanager: "-XX:+UnlockExperimentalVMOptions --add-opens=java.base/java.util=ALL-UNNAMED"
+
+# --- REQUIRED for session cluster submissions ---
+rest.address: flink-jobmanager
+rest.port: 8081
+jobmanager.rpc.address: flink-jobmanager
+

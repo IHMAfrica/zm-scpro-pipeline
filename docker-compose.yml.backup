@@ -129,7 +129,6 @@ services:
     command: ["/bin/bash","-lc","/docker-entrypoint.sh jobmanager"]
     volumes:
       - ./flink/job:/opt/flink/usrlib/job:ro
-      - ./conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml:ro
 
   flink-taskmanager:
     build:
@@ -153,7 +152,6 @@ services:
     command: ["/bin/bash","-lc","/docker-entrypoint.sh taskmanager"]
     volumes:
       - ./flink/job:/opt/flink/usrlib/job:ro
-      - ./conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml:ro 
 
   # --- Producers (Python) ---
   producer-art:

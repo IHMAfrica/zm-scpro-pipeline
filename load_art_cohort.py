@@ -5,8 +5,8 @@ PORT     = os.getenv("SQLSERVER_PORT", "1433")
 DB       = os.getenv("SQLSERVER_DB",   "carepro")
 USER     = os.getenv("SQLSERVER_USER", "airflow_user")
 PWD      = os.getenv("SQLSERVER_PASSWORD", "Tr@cK3RIHM_!2025")
-TABLE    = os.getenv("SQL_TABLE", "dbo.art_cohort")
-CSV      = r"C:\data\art_cohort.csv"
+TABLE    = os.getenv("SQL_TABLE", "dbo.CareProAllInteractions")
+CSV      = r"C:\data\CareProAllInteractions.csv"
 
 conn = pyodbc.connect(
     f"DRIVER={{ODBC Driver 17 for SQL Server}};"
